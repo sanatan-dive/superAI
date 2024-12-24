@@ -72,15 +72,15 @@ const Skeleton = () => {
         
         
         <Container className="circle-3">
-          <PerplexityLogo className="h-8 w-8 dark:text-white" />
+          <PerplexityLogo className="h-8 w-8 rounded-full dark:text-white" />
         </Container>
       
       </div>
 
-      <div className="h-40 w-px absolute top-20 m-auto z-40 bg-gradient-to-b from-transparent via-cyan-500 to-transparent animate-move">
+     
         <div className="w-10 h-32 top-1/2 -translate-y-1/2 absolute -left-10">
-          <Sparkles />
-        </div>
+         
+        
       </div>
     </div>
   );
@@ -131,7 +131,7 @@ export const Card = ({
     return (
       <div
         className={cn(
-          "max-w-md w-full mx-auto p-3 rounded-md border border-[rgba(255,255,255,0.10)] dark:bg-[rgba(40,40,40,0.70)] bg-gray-100 shadow-[2px_4px_16px_0px_rgba(248,248,248,0.06)_inset] group",
+          "max-w-md w-full mx-auto p-3 rounded-md border border-[rgba(255,255,255,0.10)] dark:bg-[rgba(40,40,40,0.70)] bg-gradient-to-b from-stone-800  to-stone-950 shadow-[2px_4px_16px_0px_rgba(248,248,248,0.06)_inset] group",
           className
         )}
       >
@@ -154,8 +154,7 @@ export const Card = ({
         className={cn(
           "h-[6rem] md:h-[8rem] rounded-md z-40 overflow-hidden",
           className,
-          showGradient &&
-            "bg-neutral-300 dark:bg-[rgba(40,40,40,0.70)] [mask-image:radial-gradient(50%_50%_at_50%_50%,white_0%,transparent_100%)]"
+          
         )}
       >
         {children}
@@ -194,7 +193,7 @@ export const Card = ({
     return (
       <h3
         className={cn(
-          "text-sm font-semibold text-gray-800 dark:text-white py-1",
+          "text-sm font-semibold text-neutral-200 dark:text-white py-1",
           className
         )}
       >
@@ -213,7 +212,7 @@ export const Card = ({
     return (
       <p
         className={cn(
-          "text-xs font-normal text-neutral-600 dark:text-neutral-400 max-w-md",
+          "text-xs font-normal text-neutral-300 dark:text-neutral-400 max-w-md",
           className
         )}
       >
@@ -221,6 +220,7 @@ export const Card = ({
       </p>
     );
   };
+  
   
   
 

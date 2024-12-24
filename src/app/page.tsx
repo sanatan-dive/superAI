@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import Hero from "@/components/Hero";
 
-import CardDemo from "@/components/cards-demo-3";
 import GPT from "@/components/GPT";
 import Claude from "@/components/Claude";
 import Perplexity from "@/components/Perplexity";
