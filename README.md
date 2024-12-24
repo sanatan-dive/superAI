@@ -3,6 +3,7 @@
 ## Overview
 This platform allows users to input queries and receive responses from multiple AI models, including **ChatGPT**, **Claude**, **Gemini**, and **Perplexity**. The platform aggregates these responses and generates a **Super Answer** using an AI model to deliver the most accurate and concise response.
 
+/basic.png
 ---
 
 ## Features
