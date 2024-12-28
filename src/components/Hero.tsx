@@ -1,17 +1,24 @@
 import React, { useState } from "react";
-import ChatInput from "./ui/Chatinput";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import ChatInput from "./ui/Chatinput";
 
 interface HeroProps {
   openLeft: () => void;
+  onSubmit: (message: string) => void; // Add the onSubmit prop for the parent component
 }
 
-function Hero({ openLeft }: HeroProps) {
+function Hero({ openLeft, onSubmit }: HeroProps) {
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [message, setMessage] = useState<string>('');
 
   const handleToggle = () => {
     setRightCollapsed(!rightCollapsed);
-    openLeft();  
+    openLeft();
+  };
+
+  const handleFormSubmit = (inputValue: string) => {
+    setMessage(inputValue);
+    onSubmit(inputValue); // Pass the message to the parent component
   };
 
   return (
@@ -29,7 +36,7 @@ function Hero({ openLeft }: HeroProps) {
             )}
           </button>
         </div>
-        
+
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl font-bold mb-4">Welcome to SuperAI</h1>
@@ -40,7 +47,7 @@ function Hero({ openLeft }: HeroProps) {
         </div>
 
         <div className="w-full max-w-5xl px-4 mb-8">
-          <ChatInput />
+          <ChatInput onSubmit={handleFormSubmit} />
         </div>
       </div>
     </div>

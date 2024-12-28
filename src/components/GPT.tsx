@@ -1,10 +1,64 @@
 "use client";
 import { animate, motion } from "framer-motion";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
+interface GPTProps {
+  message: string;
+  setResponse: (response: string) => void;
+  response: string | null;
+}
 
-export default function GPT() {
+export default function GPT({ message, setResponse, response }: GPTProps) {
+  const [loading, setLoading] = useState<boolean>(false);
+  const processingRef = useRef<boolean>(false);
+  const lastMessageRef = useRef<string>("");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // If already processing or message is empty or unchanged, don't proceed
+      if (
+        processingRef.current || 
+        !message.trim() || 
+        message === lastMessageRef.current || 
+        message === response
+      ) {
+        return;
+      }
+
+      try {
+        processingRef.current = true;
+        setLoading(true);
+        lastMessageRef.current = message;
+        
+        const result = await fetch('/api/gpt', {
+          method: 'POST',
+          body: JSON.stringify({ content: message }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        const data = await result.json();
+        setResponse(data.result);
+      } catch (error) {
+        console.error('Error fetching response:', error);
+        setResponse("Error fetching response. Please try again.");
+      } finally {
+        setLoading(false);
+        processingRef.current = false;
+      }
+    };
+
+    fetchData();
+  }, [message, setResponse]);
+
+  // Don't render anything if no message or response and not loading
+  if (!message.trim() && !response && !loading) {
+    return null;
+  }
+
+
   return (
     <Card>
       <CardSkeletonContainer>

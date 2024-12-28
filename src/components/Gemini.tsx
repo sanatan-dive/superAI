@@ -3,16 +3,50 @@ import { animate, motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+interface GeminiProps {
+  message: string;
+  setResponse: (response: string) => void;
+  response: string | null;
+}
 
-export default function Gemini() {
+export default function Gemini({ message, setResponse, response }: GeminiProps) {
+  const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (message.trim()) {
+      setLoading(true);
+      setResponse(""); // Clear previous response
+      // Simulate API request
+      const fetchData = async () => {
+        try {
+          const result = await fetch('/api/gemini', {
+            method: 'POST',
+            body: JSON.stringify({ prompt: message }),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          const data = await result.json();
+          setResponse(data.summary); 
+          console.log("okay ",data.summary)
+        } catch (error) {
+          console.error('Error fetching response:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [message, setResponse]);
+
   return (
     <Card>
       <CardSkeletonContainer>
-        <Skeleton />
+       <Skeleton/>
       </CardSkeletonContainer>
       <CardTitle>Gemini</CardTitle>
       <CardDescription>
-        Generating response...
+        {loading ? "Generating response..." : response}
       </CardDescription>
     </Card>
   );

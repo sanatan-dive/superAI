@@ -1,12 +1,12 @@
 'use client';
 
-import { Mic, Paperclip, Globe, ArrowUp } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { Paperclip, ArrowUp } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useState } from 'react';
 
 interface ChatInputProps {
-  onSubmit?: (message: string) => void;
+  onSubmit: (message: string) => void;
   placeholder?: string;
   className?: string;
 }
@@ -16,14 +16,13 @@ export default function ChatInput({
   placeholder = "Enter your query here...",
   className
 }: ChatInputProps) {
+  const [inputValue, setInputValue] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const input = form.elements.namedItem('message') as HTMLInputElement;
-    
-    if (input.value.trim()) {
-      onSubmit?.(input.value);
-      input.value = '';
+    if (inputValue.trim()) {
+      onSubmit(inputValue); 
+      setInputValue(''); 
     }
   };
 
@@ -34,18 +33,12 @@ export default function ChatInput({
           type="text"
           name="message"
           placeholder={placeholder}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
           className="bg-transparent border-none text-white placeholder:text-zinc-400 focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         <hr className="my-4" />
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="text-zinc-400 hover:text-white hover:bg-zinc-800 p-2 rounded-lg"
-            >
-              <Paperclip className="h-5 w-5" />
-            </button>
-          </div>
           <button
             type="submit"
             className="text-zinc-400 hover:text-white hover:bg-zinc-800 p-2 rounded-lg"
