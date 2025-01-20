@@ -9,6 +9,7 @@ export default function Perplexity() {
     <Card>
       <CardSkeletonContainer>
         <Skeleton />
+        
       </CardSkeletonContainer>
       <CardTitle>Perplexity</CardTitle>
       <CardDescription>

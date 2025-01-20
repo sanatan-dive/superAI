@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
+
+
 interface RequestBody {
   prompt: string; // The prompt text submitted from the form
 }

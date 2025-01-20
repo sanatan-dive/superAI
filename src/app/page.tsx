@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import Hero from "@/components/Hero";
 import Gemini from "@/components/Gemini";
 import GPT from "@/components/GPT";
+import Claude from "@/components/Claude";
+import Perplexity from "@/components/Perplexity";
 
 export default function Home() {
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -52,7 +54,8 @@ export default function Home() {
 
       {!rightCollapsed && (
         <div className="flex flex-col gap-6 p-4 items-center text-white">
-          
+            <Perplexity />
+          {/* <Claude message={message} setResponse={handleResponse} response={response} /> */}
           <GPT message={message} setResponse={handleResponse} response={response} />
           <Gemini message={message} setResponse={handleResponse} response={response} /> 
         </div>

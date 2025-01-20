@@ -71,6 +71,7 @@ const Skeleton = () => {
         
         <Container className="circle-3">
           <ClaudeLogo className="h-8 w-8 rounded-full dark:text-white" />
+      
         </Container>
       
       </div>
