@@ -2,13 +2,14 @@
 import { animate } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
-interface GeminiProps {
+interface DeepSeekProps {
   message: string;
   onResponseChange?: (response: string) => void;
 }
 
-export default function Gemini({ message, onResponseChange }: GeminiProps) {
+export default function DeepSeek({ message, onResponseChange }: DeepSeekProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [response, setResponse] = useState<string | null>(null);
   const [showMore, setShowMore] = useState<boolean>(false);
@@ -17,12 +18,11 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
   useEffect(() => {
     if (message.trim()) {
       setLoading(true);
-      setResponse(""); // Clear previous response
+      setResponse("");
       setShowMore(false); // Reset show more when new message comes
-      
       const fetchData = async () => {
         try {
-          const result = await fetch('/api/gemini', {
+          const result = await fetch('/api/deepseek', {
             method: 'POST',
             body: JSON.stringify({ prompt: message }),
             headers: {
@@ -30,10 +30,9 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
             },
           });
           const data = await result.json();
-          setResponse(data.summary);
+          setResponse(data.result);
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          onResponseChange && onResponseChange(data.summary);
-          console.log("okay ", data.summary);
+          onResponseChange && onResponseChange(data.result);
         } catch (error) {
           console.error('Error fetching response:', error);
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -103,7 +102,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
           <CardSkeletonContainer>
             <Skeleton />
           </CardSkeletonContainer>
-          <CardTitle>Gemini</CardTitle>
+          <CardTitle>DeepSeek</CardTitle>
           <CardDescription>
             {loading ? (
               "Generating response..."
@@ -125,7 +124,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle>Gemini Response</CardTitle>
+            <CardTitle>DeepSeek Response</CardTitle>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopy}
@@ -203,7 +202,7 @@ const Skeleton = () => {
     <div className="p-8 overflow-hidden h-full relative flex items-center justify-center">
       <div className="flex flex-row flex-shrink-0 justify-center items-center gap-2">
         <Container className="circle-3">
-          <GeminiLogo className="h-8 w-8 dark:text-white" />
+          <DeepseekLogo className="h-8 w-8 rounded-full dark:text-white" />
         </Container>
       </div>
       <div className="w-10 h-32 top-1/2 -translate-y-1/2 absolute -left-10"></div>
@@ -325,32 +324,14 @@ export const CardDescription = ({
   );
 };
 
-export const GeminiLogo = ({ className }: { className?: string }) => {
+export const DeepseekLogo = ({ className }: { className?: string }) => {
   return (
-    <svg
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
+    <Image
+      src="/deepseek-color.svg"
+      alt="deepseek"
+      width={32}
+      height={32}
       className={className}
-    >
-      <path
-        d="M16 8.016A8.522 8.522 0 008.016 16h-.032A8.521 8.521 0 000 8.016v-.032A8.521 8.521 0 007.984 0h.032A8.522 8.522 0 0016 7.984v.032z"
-        fill="url(#prefix__paint0_radial_980_20147)"
-      />
-      <defs>
-        <radialGradient
-          id="prefix__paint0_radial_980_20147"
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="matrix(16.1326 5.4553 -43.70045 129.2322 1.588 6.503)"
-        >
-          <stop offset=".067" stopColor="#9168C0" />
-          <stop offset=".343" stopColor="#5684D1" />
-          <stop offset=".672" stopColor="#1BA1E3" />
-        </radialGradient>
-      </defs>
-    </svg>
+    />
   );
 };
