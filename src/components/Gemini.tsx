@@ -2,6 +2,56 @@
 import { animate } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+
+const MarkdownRenderer = ({ content }: { content: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    
+    components={{
+      // Custom styling for different elements
+      h1: ({ children }) => <h1 className="text-xl font-bold text-neutral-100 mb-3">{children}</h1>,
+      h2: ({ children }) => <h2 className="text-lg font-semibold text-neutral-200 mb-2">{children}</h2>,
+      h3: ({ children }) => <h3 className="text-md font-medium text-neutral-200 mb-2">{children}</h3>,
+      p: ({ children }) => <p className="mb-4 text-neutral-300 text-sm leading-relaxed">{children}</p>,
+      ul: ({ children }) => <ul className="list-disc ml-6 space-y-1 mb-4">{children}</ul>,
+      ol: ({ children }) => <ol className="list-decimal ml-6 space-y-1 mb-4">{children}</ol>,
+      li: ({ children }) => <li className="text-neutral-300 text-sm leading-relaxed">{children}</li>,
+      code: ({ inline, children }) => 
+        inline ? (
+          <code className="bg-neutral-700 px-1 py-0.5 rounded text-xs text-neutral-200 font-mono">
+            {children}
+          </code>
+        ) : (
+          <code className="block bg-neutral-800 p-3 rounded-lg text-sm text-neutral-200 font-mono overflow-x-auto">
+            {children}
+          </code>
+        ),
+      pre: ({ children }) => <div className="mb-4">{children}</div>,
+      strong: ({ children }) => <strong className="font-semibold text-neutral-200">{children}</strong>,
+      em: ({ children }) => <em className="italic text-neutral-200">{children}</em>,
+      a: ({ href, children }) => (
+        <a 
+          href={href} 
+          className="text-blue-400 hover:text-blue-300 underline" 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          {children}
+        </a>
+      ),
+      blockquote: ({ children }) => (
+        <blockquote className="border-l-4 border-neutral-600 pl-4 my-4 text-neutral-400 italic">
+          {children}
+        </blockquote>
+      ),
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+);
 
 interface GeminiProps {
   message: string;
@@ -30,10 +80,10 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
             },
           });
           const data = await result.json();
-          setResponse(data.summary);
+          setResponse(data.result);
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          onResponseChange && onResponseChange(data.summary);
-          console.log("okay ", data.summary);
+          onResponseChange && onResponseChange(data.result);
+          console.log("okay ", data.result);
         } catch (error) {
           console.error('Error fetching response:', error);
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -89,7 +139,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
       } else {
         return (
           <p key={index} className="mb-4 text-neutral-300 text-sm leading-relaxed">
-            {paragraph}
+            <MarkdownRenderer content={response} />
           </p>
         );
       }

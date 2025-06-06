@@ -5,6 +5,8 @@ import {
   ArrowRight,
   Sidebar as SidebarIcon,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ChatInput from './ui/Chatinput';
 import Sidebar from '@/components/ui/sidebar';
 
@@ -22,6 +24,53 @@ interface HeroProps {
   ultimateResponse?: string; // Ultimate AI response from Mistral
   isProcessing?: boolean; // Whether Mistral is processing
 }
+
+// Markdown Renderer Component
+const MarkdownRenderer = ({ content }: { content: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      // Custom styling for different elements
+      h1: ({ children }) => <h1 className="text-xl font-bold text-neutral-100 mb-3">{children}</h1>,
+      h2: ({ children }) => <h2 className="text-lg font-semibold text-neutral-200 mb-2">{children}</h2>,
+      h3: ({ children }) => <h3 className="text-md font-medium text-neutral-200 mb-2">{children}</h3>,
+      p: ({ children }) => <p className="mb-4 text-neutral-300 text-sm leading-relaxed">{children}</p>,
+      ul: ({ children }) => <ul className="list-disc ml-6 space-y-1 mb-4">{children}</ul>,
+      ol: ({ children }) => <ol className="list-decimal ml-6 space-y-1 mb-4">{children}</ol>,
+      li: ({ children }) => <li className="text-neutral-300 text-sm leading-relaxed">{children}</li>,
+      code: ({ inline, children }) =>
+        inline ? (
+          <code className="bg-neutral-700 px-1 py-0.5 rounded text-xs text-neutral-200 font-mono">
+            {children}
+          </code>
+        ) : (
+          <code className="block bg-neutral-800 p-3 rounded-lg text-sm text-neutral-200 font-mono overflow-x-auto">
+            {children}
+          </code>
+        ),
+      pre: ({ children }) => <div className="mb-4">{children}</div>,
+      strong: ({ children }) => <strong className="font-semibold text-neutral-200">{children}</strong>,
+      em: ({ children }) => <em className="italic text-neutral-200">{children}</em>,
+      a: ({ href, children }) => (
+        <a
+          href={href}
+          className="text-blue-400 hover:text-blue-300 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {children}
+        </a>
+      ),
+      blockquote: ({ children }) => (
+        <blockquote className="border-l-4 border-neutral-600 pl-4 my-4 text-neutral-400 italic">
+          {children}
+        </blockquote>
+      ),
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+);
 
 function Hero({ openLeft, onSubmit, ultimateResponse, isProcessing }: HeroProps) {
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -128,7 +177,7 @@ function Hero({ openLeft, onSubmit, ultimateResponse, isProcessing }: HeroProps)
           
           {/* Messages Container */}
           {messages.length > 0 && (
-            <div className="flex-1 overflow-y-auto px-4 py-6">
+            <div className="flex-1 overflow-y-scroll min-h-full px-4 py-6">
               <div className="max-w-5xl mx-auto space-y-6">
                 {messages.map((message) => (
                   <div
@@ -142,12 +191,27 @@ function Hero({ openLeft, onSubmit, ultimateResponse, isProcessing }: HeroProps)
                           : 'bg-stone-800 text-gray-100 mr-auto border border-stone-700'
                       }`}
                     >
-                      <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
-                        {message.text}
-                      </p>
-                      <p className="text-xs opacity-70 mt-2">
-                        {message.timestamp.toLocaleTimeString()}
-                      </p>
+                      {message.isUser ? (
+                        // User messages - display as plain text
+                        <>
+                          <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                            {message.text}
+                          </p>
+                          <p className="text-xs opacity-70 mt-2">
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                        </>
+                      ) : (
+                        // AI messages - render markdown
+                        <>
+                          <div className="text-sm sm:text-base leading-relaxed">
+                            <MarkdownRenderer content={message.text} />
+                          </div>
+                          <p className="text-xs opacity-70 mt-2">
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

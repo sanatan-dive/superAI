@@ -54,10 +54,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       provider: "novita",
       model: "deepseek-ai/DeepSeek-R1",
       messages: [
-        {
-          role: "system",
-          content: "You are a helpful assistant. Provide direct, clear responses without showing your reasoning process or internal thoughts."
-        },
+          {
+            role: "system",
+            content: "You are a helpful assistant. Always format your responses in clean markdown syntax. Use headers (# ## ###), bullet points, code blocks (```), **bold**, *italic*, and other markdown formatting to make responses well-structured and readable."
+          },
         {
           role: "user",
           content: prompt,
