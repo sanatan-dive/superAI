@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from "react";
 import Hero from "@/components/Hero";
 import Gemini from "@/components/Gemini";
-// import GPT from "@/components/GPT";
-// import Claude from "@/components/Claude";
 import DeepSeek from "@/components/Deepseek";
 import { useUser, useClerk } from "@clerk/nextjs";
+import Devstral from "@/components/Devstral";
+import Llama from "@/components/Llama";
 
 export default function Home() {
   const [rightCollapsed, setRightCollapsed] = useState(true); // Start with right panel closed
@@ -85,6 +85,24 @@ export default function Home() {
     });
   };
 
+  // Handler for GPT responses
+  const handleGPTResponse = (response: string) => {
+    setResponses(prev => {
+      // Remove any existing GPT response and add the new one
+      const filtered = prev.filter(r => r.model !== 'gpt');
+      return [...filtered, { model: 'gpt', response }];
+    });
+  };
+
+  // Handler for Claude responses
+  const handleClaudeResponse = (response: string) => {
+    setResponses(prev => {
+      // Remove any existing Claude response and add the new one
+      const filtered = prev.filter(r => r.model !== 'claude');
+      return [...filtered, { model: 'claude', response }];
+    });
+  };
+
   // Function to call Mistral API for summarization
   const handleSummarizeWithMistral = async () => {
     if (responses.length === 0) {
@@ -152,15 +170,15 @@ export default function Home() {
   // };
 
   return (
-    <div className="bg-stone-950 min-h-screen overflow-hidden">
+    <div className="bg-stone-950 max-h-screen overflow-hidden">
       <div
-        className={`grid transition-all duration-500 ease-in-out min-h-screen ${
+        className={`grid transition-all relative duration-500 ease-in-out min-h-screen ${
           rightCollapsed ? "grid-cols-1" : "grid-cols-[70%,30%]"
         }`}
       >
         {/* Left Panel - Hero Component */}
         <div 
-          className={`flex items-center justify-center transition-all duration-500 ease-in-out ${
+          className={`flex items-center justify-center transition-all duration-500 ease-in-out overflow-hidden ${
             rightCollapsed ? 'translate-x-0' : 'translate-x-0'
           }`}
         >
@@ -176,13 +194,13 @@ export default function Home() {
         {/* Right Panel - AI Responses */}
         <div 
           className={`
-            fixed top-0 right-0 h-full bg-stone-950 z-40
-            transition-all duration-500 ease-in-out
+            relative top-0 right-0 max-h-screen bg-stone-950 z-40
+            transition-all duration-500 ease-in-out overflow-scroll
             ${rightCollapsed 
               ? 'w-0 opacity-0 translate-x-full' 
               : 'w-[30vw] opacity-100 translate-x-0'
             }
-            ${hasSubmittedMessage ? 'pointer-events-auto' : 'pointer-events-none'}
+            ${hasSubmittedMessage ? 'pointer-events-auto' : ''}
           `}
         >
           {/* Panel Content */}
@@ -193,20 +211,17 @@ export default function Home() {
               ${rightCollapsed ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
             `}
           >
-            {/* Header with toggle button */}
-            <div className="w-full flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">AI Responses</h2>
-            </div>
+           
 
             {/* AI Components with staggered animations */}
             <div 
               className={`
-                w-full flex flex-col gap-6
+                w-full flex flex-col gap-5
                 transition-all duration-300 delay-400 ease-in-out
                 ${rightCollapsed ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}
               `}
             >
-              <div 
+               <div 
                 className={`
                   transition-all duration-300 delay-500 ease-in-out
                   ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
@@ -214,34 +229,35 @@ export default function Home() {
               >
                 <DeepSeek message={message} onResponseChange={handleDeepSeekResponse}/>
               </div>
-              
-              {/* Uncomment these as needed */}
-              {/* <div 
+
+               <div 
                 className={`
-                  transition-all duration-300 delay-600 ease-in-out
-                  ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
-                `}
-              >
-                <Claude message={message} />
-              </div> */}
-              
-              {/* <div 
-                className={`
-                  transition-all duration-300 delay-700 ease-in-out
-                  ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
-                `}
-              >
-                <GPT message={message} />
-              </div> */}
-              
-              <div 
-                className={`
-                  transition-all duration-300 delay-600 ease-in-out
+                  transition-all duration-300 delay-500 ease-in-out
                   ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
                 `}
               >
                 <Gemini message={message} onResponseChange={handleGeminiResponse} />
               </div>
+            
+              
+               <div 
+                className={`
+                  transition-all duration-300 delay-500 ease-in-out 
+                  ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
+                `}
+              >
+                <Llama message={message} onResponseChange={handleClaudeResponse} />
+              </div> 
+              
+              <div 
+                className={`
+                  transition-all duration-300 delay-500 ease-in-out 
+                  ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
+                `}
+              >
+                <Devstral message={message} onResponseChange={handleGPTResponse} />
+              </div>
+             
             </div>
 
             {/* Mistral Processing Status */}

@@ -1,17 +1,14 @@
 "use client";
 import { animate } from "framer-motion";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-
 const MarkdownRenderer = ({ content }: { content: string }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
-    
     components={{
-      // Custom styling for different elements
       h1: ({ children }) => <h1 className="text-xl font-bold text-neutral-100 mb-3">{children}</h1>,
       h2: ({ children }) => <h2 className="text-lg font-semibold text-neutral-200 mb-2">{children}</h2>,
       h3: ({ children }) => <h3 className="text-md font-medium text-neutral-200 mb-2">{children}</h3>,
@@ -19,6 +16,8 @@ const MarkdownRenderer = ({ content }: { content: string }) => (
       ul: ({ children }) => <ul className="list-disc ml-6 space-y-1 mb-4">{children}</ul>,
       ol: ({ children }) => <ol className="list-decimal ml-6 space-y-1 mb-4">{children}</ol>,
       li: ({ children }) => <li className="text-neutral-300 text-sm leading-relaxed">{children}</li>,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
       code: ({ inline, children }) => 
         inline ? (
           <code className="bg-neutral-700 px-1 py-0.5 rounded text-xs text-neutral-200 font-mono">
@@ -53,40 +52,56 @@ const MarkdownRenderer = ({ content }: { content: string }) => (
   </ReactMarkdown>
 );
 
-interface GeminiProps {
+interface DevstralProps {
   message: string;
   onResponseChange?: (response: string) => void;
 }
 
-export default function Gemini({ message, onResponseChange }: GeminiProps) {
+export default function Devstral({ message, onResponseChange }: DevstralProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [response, setResponse] = useState<string | null>(null);
   const [showMore, setShowMore] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const prevMessage = useRef<string>("");
 
   useEffect(() => {
-    if (message.trim()) {
+    if (message.trim() && message !== prevMessage.current) {
+      prevMessage.current = message;
       setLoading(true);
-      setResponse(""); // Clear previous response
-      setShowMore(false); // Reset show more when new message comes
+      setResponse("");
+      setShowMore(false);
       
       const fetchData = async () => {
         try {
-          const result = await fetch('/api/gemini', {
+          const requestBody = { 
+            content: message
+          };
+
+          console.log("Sending request:", requestBody);
+
+          const result = await fetch('/api/devstral', {
             method: 'POST',
-            body: JSON.stringify({ prompt: message }),
+            body: JSON.stringify(requestBody),
             headers: {
               'Content-Type': 'application/json',
             },
           });
+          
+          if (!result.ok) {
+            const errorData = await result.json();
+            throw new Error(errorData.error || 'Failed to get response');
+          }
+          
           const data = await result.json();
-          setResponse(data.result);
-          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          onResponseChange && onResponseChange(data.result);
-          console.log("okay ", data.result);
+          const responseText = data.result || 'No response received';
+          console.log("Response received:", responseText);
+          setResponse(responseText);
+         
+          onResponseChange && onResponseChange(responseText);
         } catch (error) {
           console.error('Error fetching response:', error);
-          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          setResponse(`Error: ${errorMessage}`);
           onResponseChange && onResponseChange("");
         } finally {
           setLoading(false);
@@ -94,7 +109,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
       };
       fetchData();
     }
-  }, [message]);
+  }, [message]); // Removed onResponseChange from dependencies
 
   const handleCopy = async () => {
     if (response) {
@@ -115,10 +130,8 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
   };
 
   const formatResponse = (text: string) => {
-    // Split by double newlines for paragraphs
     const paragraphs = text.split(/\n\n+/);
     return paragraphs.map((paragraph, index) => {
-      // Check if paragraph contains bullet points or numbered lists
       if (paragraph.includes('\n-') || paragraph.includes('\n•') || /\n\d+\./.test(paragraph)) {
         const lines = paragraph.split('\n');
         const title = lines[0];
@@ -138,9 +151,9 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
         );
       } else {
         return (
-          <p key={index} className="mb-4 text-neutral-300 text-sm leading-relaxed">
-            <MarkdownRenderer content={response || ""} />
-          </p>
+          <div key={index} className="mb-4">
+            <MarkdownRenderer content={paragraph} />
+          </div>
         );
       }
     });
@@ -153,7 +166,9 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
           <CardSkeletonContainer>
             <Skeleton />
           </CardSkeletonContainer>
-          <CardTitle>Gemini</CardTitle>
+          <CardTitle>
+            <span>Mistral</span>
+          </CardTitle>
           <CardDescription>
             {loading ? (
               "Generating response..."
@@ -175,7 +190,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle>Gemini Response</CardTitle>
+            <CardTitle>OpenRouter AI Response</CardTitle>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopy}
@@ -198,6 +213,22 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
           </div>
         </div>
       )}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.5);
+        }
+      `}</style>
     </Card>
   );
 }
@@ -243,7 +274,7 @@ const Skeleton = () => {
   useEffect(() => {
     animate(sequence, {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
+      //@ts-ignore
       repeat: Infinity,
       repeatDelay: 1,
     });
@@ -253,7 +284,7 @@ const Skeleton = () => {
     <div className="p-8 overflow-hidden h-full relative flex items-center justify-center">
       <div className="flex flex-row flex-shrink-0 justify-center items-center gap-2">
         <Container className="circle-3">
-          <GeminiLogo className="h-8 w-8 dark:text-white" />
+          <OpenRouterLogo className="h-8 w-8 dark:text-white" />
         </Container>
       </div>
       <div className="w-10 h-32 top-1/2 -translate-y-1/2 absolute -left-10"></div>
@@ -276,29 +307,15 @@ export const Card = ({
       )}
     >
       {children}
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.5);
-        }
-      `}</style>
     </div>
   );
 };
-
+  
 export const CardSkeletonContainer = ({
   className,
   children,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  showGradient = true,
 }: {
   className?: string;
   children: React.ReactNode;
@@ -308,7 +325,7 @@ export const CardSkeletonContainer = ({
     <div
       className={cn(
         "h-[6rem] md:h-[8rem] rounded-md z-40 overflow-hidden",
-        className
+        className,
       )}
     >
       {children}
@@ -327,8 +344,8 @@ const Container = ({
     <div
       className={cn(
         `h-10 w-10 rounded-full flex items-center justify-center bg-[rgba(248,248,248,0.01)]
-      shadow-[0px_0px_8px_0px_rgba(248,248,248,0.25)_inset,0px_32px_24px_-16px_rgba(0,0,0,0.40)]
-      `,
+    shadow-[0px_0px_8px_0px_rgba(248,248,248,0.25)_inset,0px_32px_24px_-16px_rgba(0,0,0,0.40)]
+    `,
         className
       )}
     >
@@ -375,32 +392,21 @@ export const CardDescription = ({
   );
 };
 
-export const GeminiLogo = ({ className }: { className?: string }) => {
+export const OpenRouterLogo = ({ className }: { className?: string }) => {
   return (
     <svg
+      className={className}
+      width="28"
+      height="28"
+      viewBox="0 0 28 28"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
-      className={className}
     >
       <path
-        d="M16 8.016A8.522 8.522 0 008.016 16h-.032A8.521 8.521 0 000 8.016v-.032A8.521 8.521 0 007.984 0h.032A8.522 8.522 0 0016 7.984v.032z"
-        fill="url(#prefix__paint0_radial_980_20147)"
+        d="M14 0L17.5 10.5L28 14L17.5 17.5L14 28L10.5 17.5L0 14L10.5 10.5L14 0Z"
+        fill="currentColor"
       />
-      <defs>
-        <radialGradient
-          id="prefix__paint0_radial_980_20147"
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="matrix(16.1326 5.4553 -43.70045 129.2322 1.588 6.503)"
-        >
-          <stop offset=".067" stopColor="#9168C0" />
-          <stop offset=".343" stopColor="#5684D1" />
-          <stop offset=".672" stopColor="#1BA1E3" />
-        </radialGradient>
-      </defs>
+      <circle cx="14" cy="14" r="4" fill="rgba(0,0,0,0.3)" />
     </svg>
   );
 };

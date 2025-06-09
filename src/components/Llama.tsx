@@ -1,17 +1,13 @@
-"use client";
 import { animate } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-
 const MarkdownRenderer = ({ content }: { content: string }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
-    
     components={{
-      // Custom styling for different elements
       h1: ({ children }) => <h1 className="text-xl font-bold text-neutral-100 mb-3">{children}</h1>,
       h2: ({ children }) => <h2 className="text-lg font-semibold text-neutral-200 mb-2">{children}</h2>,
       h3: ({ children }) => <h3 className="text-md font-medium text-neutral-200 mb-2">{children}</h3>,
@@ -53,12 +49,12 @@ const MarkdownRenderer = ({ content }: { content: string }) => (
   </ReactMarkdown>
 );
 
-interface GeminiProps {
+interface ClaudeProps {
   message: string;
   onResponseChange?: (response: string) => void;
 }
 
-export default function Gemini({ message, onResponseChange }: GeminiProps) {
+export default function Claude({ message, onResponseChange }: ClaudeProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [response, setResponse] = useState<string | null>(null);
   const [showMore, setShowMore] = useState<boolean>(false);
@@ -67,26 +63,43 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
   useEffect(() => {
     if (message.trim()) {
       setLoading(true);
-      setResponse(""); // Clear previous response
-      setShowMore(false); // Reset show more when new message comes
+      setResponse("");
+      setShowMore(false);
       
       const fetchData = async () => {
         try {
-          const result = await fetch('/api/gemini', {
+          console.log('Making API call with message:', message);
+          
+          const result = await fetch('/api/llama', {
             method: 'POST',
-            body: JSON.stringify({ prompt: message }),
+            body: JSON.stringify({ 
+              prompt: message
+            }),
             headers: {
               'Content-Type': 'application/json',
             },
           });
+          
+          console.log('API response status:', result.status);
+          
+          if (!result.ok) {
+            const errorData = await result.json();
+            console.error('API error:', errorData);
+            throw new Error(errorData.error || 'Failed to get response');
+          }
+          
           const data = await result.json();
-          setResponse(data.result);
-          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          onResponseChange && onResponseChange(data.result);
-          console.log("okay ", data.result);
+          console.log('API response data:', data);
+          
+          const responseText = data.choices?.[0]?.message?.content || data.result || 'No response received';
+          console.log('Extracted response text:', responseText);
+          
+          setResponse(responseText);
+          onResponseChange && onResponseChange(responseText);
         } catch (error) {
           console.error('Error fetching response:', error);
-          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          setResponse(`Error: ${errorMessage}`);
           onResponseChange && onResponseChange("");
         } finally {
           setLoading(false);
@@ -115,10 +128,8 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
   };
 
   const formatResponse = (text: string) => {
-    // Split by double newlines for paragraphs
     const paragraphs = text.split(/\n\n+/);
     return paragraphs.map((paragraph, index) => {
-      // Check if paragraph contains bullet points or numbered lists
       if (paragraph.includes('\n-') || paragraph.includes('\n•') || /\n\d+\./.test(paragraph)) {
         const lines = paragraph.split('\n');
         const title = lines[0];
@@ -138,9 +149,9 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
         );
       } else {
         return (
-          <p key={index} className="mb-4 text-neutral-300 text-sm leading-relaxed">
-            <MarkdownRenderer content={response || ""} />
-          </p>
+          <div key={index} className="mb-4">
+            <MarkdownRenderer content={paragraph} />
+          </div>
         );
       }
     });
@@ -153,7 +164,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
           <CardSkeletonContainer>
             <Skeleton />
           </CardSkeletonContainer>
-          <CardTitle>Gemini</CardTitle>
+          <CardTitle>Llama</CardTitle>
           <CardDescription>
             {loading ? (
               "Generating response..."
@@ -175,7 +186,7 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle>Gemini Response</CardTitle>
+            <CardTitle>AI Response</CardTitle>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopy}
@@ -193,11 +204,27 @@ export default function Gemini({ message, onResponseChange }: GeminiProps) {
           </div>
           <div className="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
             <div className="space-y-3">
-              {response ? <MarkdownRenderer content={response} /> : "No response available"}
+              {response ? formatResponse(response) : "No response available"}
             </div>
           </div>
         </div>
       )}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.5);
+        }
+      `}</style>
     </Card>
   );
 }
@@ -242,8 +269,6 @@ const Skeleton = () => {
 
   useEffect(() => {
     animate(sequence, {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
       repeat: Infinity,
       repeatDelay: 1,
     });
@@ -253,7 +278,7 @@ const Skeleton = () => {
     <div className="p-8 overflow-hidden h-full relative flex items-center justify-center">
       <div className="flex flex-row flex-shrink-0 justify-center items-center gap-2">
         <Container className="circle-3">
-          <GeminiLogo className="h-8 w-8 dark:text-white" />
+          <LlamaLogo className="h-8 w-8 rounded-full dark:text-white" />
         </Container>
       </div>
       <div className="w-10 h-32 top-1/2 -translate-y-1/2 absolute -left-10"></div>
@@ -276,29 +301,14 @@ export const Card = ({
       )}
     >
       {children}
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.5);
-        }
-      `}</style>
     </div>
   );
 };
-
+  
 export const CardSkeletonContainer = ({
   className,
   children,
+  showGradient = true,
 }: {
   className?: string;
   children: React.ReactNode;
@@ -308,7 +318,7 @@ export const CardSkeletonContainer = ({
     <div
       className={cn(
         "h-[6rem] md:h-[8rem] rounded-md z-40 overflow-hidden",
-        className
+        className,
       )}
     >
       {children}
@@ -327,8 +337,8 @@ const Container = ({
     <div
       className={cn(
         `h-10 w-10 rounded-full flex items-center justify-center bg-[rgba(248,248,248,0.01)]
-      shadow-[0px_0px_8px_0px_rgba(248,248,248,0.25)_inset,0px_32px_24px_-16px_rgba(0,0,0,0.40)]
-      `,
+    shadow-[0px_0px_8px_0px_rgba(248,248,248,0.25)_inset,0px_32px_24px_-16px_rgba(0,0,0,0.40)]
+    `,
         className
       )}
     >
@@ -375,32 +385,15 @@ export const CardDescription = ({
   );
 };
 
-export const GeminiLogo = ({ className }: { className?: string }) => {
+export const LlamaLogo = ({ className }: { className?: string }) => {
   return (
     <svg
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
+      viewBox="0 0 24 24"
+      fill="currentColor"
       className={className}
     >
-      <path
-        d="M16 8.016A8.522 8.522 0 008.016 16h-.032A8.521 8.521 0 000 8.016v-.032A8.521 8.521 0 007.984 0h.032A8.522 8.522 0 0016 7.984v.032z"
-        fill="url(#prefix__paint0_radial_980_20147)"
-      />
-      <defs>
-        <radialGradient
-          id="prefix__paint0_radial_980_20147"
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="matrix(16.1326 5.4553 -43.70045 129.2322 1.588 6.503)"
-        >
-          <stop offset=".067" stopColor="#9168C0" />
-          <stop offset=".343" stopColor="#5684D1" />
-          <stop offset=".672" stopColor="#1BA1E3" />
-        </radialGradient>
-      </defs>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
   );
 };

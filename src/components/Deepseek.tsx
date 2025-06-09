@@ -196,7 +196,7 @@ export default function DeepSeek({ message, onResponseChange }: DeepSeekProps) {
           </div>
           <div className="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
             <div className="space-y-3">
-              {response ? formatResponse(response) : "No response available"}
+              {response ? <MarkdownRenderer content={response} />: "No response available"}
             </div>
           </div>
         </div>

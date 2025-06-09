@@ -1,215 +1,259 @@
-import { NextRequest } from 'next/server';
+// app/api/Features/Summary/route.ts (App Router)
 
-// Function to clean and format the summary response
-function cleanAndFormatSummary(text: string, originalPrompt: string): string {
-  if (!text) return "";
-  
-  let cleaned = text.trim();
-  
-  // Remove the original prompt if it's included in the response
-  if (cleaned.includes(originalPrompt)) {
-    cleaned = cleaned.replace(originalPrompt, '').trim();
+import { NextRequest, NextResponse } from 'next/server';
+
+interface AIResponse {
+  model: string;
+  result?: string;
+  response?: string;
+  summary?: string;
+  text?: string;
+}
+
+interface SummaryRequest {
+  message: string;
+  responses: AIResponse[];
+  userContext?: {
+    userId: string;
+    courseName?: string;
+    currentLesson?: string;
+    learningGoals?: string[];
+  };
+}
+
+// OpenRouter API configuration  
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || 'SuperAI';
+
+class SummaryService {
+  private buildSystemPrompt(userContext?: any): string {
+    return `You are an expert AI synthesis assistant. Your single task is to create the most accurate, comprehensive, and actionable final answer by combining multiple AI responses.
+
+CRITICAL INSTRUCTIONS:
+1. Synthesize all responses into ONE definitive answer
+2. Extract the best information from each response
+3. Resolve contradictions by choosing the most accurate information
+4. Present the final answer as if it came from a single, highly knowledgeable source
+5. Use clear, professional markdown formatting
+6. Be concise but complete - no redundancy or fluff
+
+OUTPUT FORMAT:
+- Start directly with the synthesized answer
+- Use ## for main sections only when necessary
+- Use **bold** for key points
+- Use bullet points for lists
+- Include code blocks with \`\`\` for technical content
+- End with actionable recommendations if applicable
+
+AVOID:
+- Mentioning "multiple responses" or "different AI models"
+- Phrases like "According to Response 1" or "AI X suggests"
+- Redundant information
+- Contradictory statements
+- Meta-commentary about the synthesis process
+
+Your goal: Provide the user with the single best answer to their question, as if you were the most knowledgeable expert on the topic.`;
   }
-  
-  // Remove common prompt artifacts
-  cleaned = cleaned.replace(/^Summary:\s*/i, '');
-  cleaned = cleaned.replace(/^Here's a comprehensive summary:\s*/i, '');
-  cleaned = cleaned.replace(/^Based on the above responses:\s*/i, '');
-  
-  // Ensure proper markdown formatting
-  // Fix headers
-  cleaned = cleaned.replace(/^(#{1,6})\s*(.+)$/gm, '$1 $2');
-  
-  // Ensure proper spacing around sections
-  cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n');
-  
-  // Fix bullet points
-  cleaned = cleaned.replace(/^\s*[\-\*\+]\s+/gm, '- ');
-  
-  // Fix numbered lists
-  cleaned = cleaned.replace(/^\s*(\d+)\.\s+/gm, '$1. ');
-  
-  // Ensure proper spacing around code blocks
-  cleaned = cleaned.replace(/```(\w+)?\n/g, '```$1\n');
-  cleaned = cleaned.replace(/\n```/g, '\n```');
-  
-  return cleaned;
+
+  private cleanResponse(text: string): string {
+    if (!text) return "";
+    
+    // Remove reasoning blocks
+    let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+    cleaned = cleaned.replace(/<reasoning>[\s\S]*?<\/reasoning>/g, '');
+    
+    // Remove meta-commentary about synthesis
+    cleaned = cleaned.replace(/based on the.*?responses?:?\s*/gi, '');
+    cleaned = cleaned.replace(/after analyzing.*?responses?:?\s*/gi, '');
+    cleaned = cleaned.replace(/combining.*?information:?\s*/gi, '');
+    cleaned = cleaned.replace(/synthesizing.*?responses?:?\s*/gi, '');
+    
+    // Remove reference to multiple sources
+    cleaned = cleaned.replace(/according to (response|ai|model)\s*\d+:?\s*/gi, '');
+    cleaned = cleaned.replace(/response \d+ (suggests|states|mentions):?\s*/gi, '');
+    cleaned = cleaned.replace(/(ai|model) [a-z] (suggests|states|mentions):?\s*/gi, '');
+    
+    // Clean up formatting
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    cleaned = cleaned.trim();
+    cleaned = cleaned.split('\n').map(line => line.trim()).join('\n');
+    cleaned = cleaned.replace(/<[^>]*>/g, '');
+    
+    // Remove common summary prefixes
+    cleaned = cleaned.replace(/^(summary|here's|based on):?\s*/i, '');
+    cleaned = cleaned.replace(/^(comprehensive|final) (answer|summary):?\s*/i, '');
+    
+    return cleaned;
+  }
+
+  private buildSummaryPrompt(message: string, responses: AIResponse[]): string {
+    let prompt = `Question: "${message}"\n\n`;
+    prompt += `Multiple AI responses to synthesize:\n\n`;
+
+    responses.forEach((resp, index) => {
+      const responseText = resp.result || resp.response || resp.summary || resp.text || '';
+      if (responseText) {
+        prompt += `Response ${index + 1}:\n${responseText}\n\n`;
+      }
+    });
+
+    prompt += `\nTask: Create the single best, most comprehensive answer by combining the valuable information from all responses above. Present it as one unified, authoritative response without referencing the individual sources.`;
+
+    return prompt;
+  }
+
+  private async callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
+    if (!OPENROUTER_API_KEY) {
+      throw new Error('OpenRouter API key is not configured');
+    }
+
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': SITE_URL,
+          'X-Title': SITE_NAME,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-r1-0528:free',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3, // Lower temperature for more focused synthesis
+          max_tokens: 2000,
+          top_p: 0.8,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`OpenRouter API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.choices && data.choices[0]?.message?.content) {
+        return data.choices[0].message.content.trim();
+      } else {
+        throw new Error('Unexpected response format from OpenRouter');
+      }
+    } catch (error) {
+      console.error('Error calling OpenRouter API:', error);
+      throw error;
+    }
+  }
+
+  async generateSummary(request: SummaryRequest): Promise<any> {
+    try {
+      const systemPrompt = this.buildSystemPrompt(request.userContext);
+      const userPrompt = this.buildSummaryPrompt(request.message, request.responses);
+
+      const response = await this.callOpenRouter(systemPrompt, userPrompt);
+      const cleanedResponse = this.cleanResponse(response);
+
+      if (!cleanedResponse || cleanedResponse.length < 20) {
+        return {
+          success: false,
+          result: "I couldn't generate a comprehensive summary. Please try again with your request.",
+          originalMessage: request.message,
+          responseCount: request.responses.length,
+          processedAt: new Date().toISOString(),
+          model_used: 'deepseek/deepseek-r1-0528:free'
+        };
+      }
+
+      return {
+        success: true,
+        result: cleanedResponse,
+        summary: cleanedResponse,
+        originalMessage: request.message,
+        responseCount: request.responses.length,
+        processedAt: new Date().toISOString(),
+        model_used: 'deepseek/deepseek-r1-0528:free'
+      };
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('token') || error.message.includes('401')) {
+          return {
+            success: false,
+            error: "API configuration error",
+            result: "I'm having technical difficulties with the API configuration. Please try again later.",
+            originalMessage: request.message,
+            responseCount: request.responses.length,
+            processedAt: new Date().toISOString()
+          };
+        }
+        
+        if (error.message.includes('429') || error.message.includes('rate limit')) {
+          return {
+            success: false,
+            error: "Rate limit exceeded",
+            result: "I'm currently experiencing high demand. Please try again in a few moments.",
+            originalMessage: request.message,
+            responseCount: request.responses.length,
+            processedAt: new Date().toISOString()
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: 'Failed to generate summary',
+        result: "I'm experiencing technical issues. Please try again shortly.",
+        originalMessage: request.message,
+        responseCount: request.responses.length,
+        processedAt: new Date().toISOString()
+      };
+    }
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    
     const { message, responses } = body;
-
-    // Validate input
     if (!message || !responses || !Array.isArray(responses)) {
-      return Response.json(
-        { error: 'Missing required fields: message and responses array' },
+      return NextResponse.json(
+        { 
+          error: 'Missing required fields: message and responses array',
+          success: false
+        },
         { status: 400 }
       );
     }
 
-    // Check if API key exists
-    const apiKey = process.env.HF_TOKEN;
-    if (!apiKey) {
-      console.error('HUGGINGFACE_API_KEY environment variable is not set');
-      return Response.json(
-        { error: 'API configuration error' },
-        { status: 500 }
-      );
-    }
-
-    // Create a comprehensive prompt for summarization with markdown formatting instructions
-    let combinedInput = `Original Question: "${message}"\n\n`;
-    combinedInput += `AI Responses to Summarize:\n\n`;
-
-    // Add each AI response to the input - FIXED: Check multiple possible response fields
-    responses.forEach((resp: any, index: number) => {
-      combinedInput += `${index + 1}. ${resp.model.toUpperCase()} Response:\n`;
-      
-      // Try different possible response field names
-      const responseText = resp.result || resp.response || resp.summary || resp.text || '';
-      
-      if (!responseText) {
-        console.warn(`Warning: No response content found for ${resp.model}. Available fields:`, Object.keys(resp));
-        combinedInput += `[No response content available]\n\n`;
-      } else {
-        combinedInput += `${responseText}\n\n`;
-      }
-    });
-
-    // Enhanced summarization instruction with markdown formatting
-    combinedInput += `Please provide a comprehensive summary in well-structured markdown format. Use proper markdown syntax including:\n`;
-    combinedInput += `- Headers (# ## ###) to organize different sections\n`;
-    combinedInput += `- **Bold** text for key points and emphasis\n`;
-    combinedInput += `- Bullet points for lists and comparisons\n`;
-    combinedInput += `- Code blocks with \`\`\` when discussing technical concepts\n`;
-    combinedInput += `- Proper paragraph spacing for readability\n\n`;
-    combinedInput += `Structure your summary to cover:\n`;
-    combinedInput += `## Key Insights\n`;
-    combinedInput += `- Common themes and agreements between the responses\n`;
-    combinedInput += `- Unique insights from each AI model\n\n`;
-    combinedInput += `## Synthesized Answer\n`;
-    combinedInput += `- A comprehensive answer incorporating the best elements from all responses\n\n`;
-    combinedInput += `## Different Perspectives\n`;
-    combinedInput += `- Any contradictions or varying viewpoints that should be noted\n\n`;
-    combinedInput += `## Conclusion\n`;
-    combinedInput += `- Final recommendations or takeaways\n\n`;
-    combinedInput += `Summary:`;
-
-    console.log('Sending to Hugging Face API:', combinedInput.substring(0, 500) + '...');
-
-    // Debug: Log the responses structure
-    console.log('Debug - Response objects:', responses.map(r => ({
-      model: r.model,
-      hasResult: !!r.result,
-      hasResponse: !!r.response,
-      hasSummary: !!r.summary,
-      keys: Object.keys(r)
-    })));
-
-    // Try direct API call to Hugging Face with enhanced parameters
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: combinedInput,
-          parameters: {
-            max_new_tokens: 1500, // Increased for more comprehensive summaries
-            temperature: 0.7,
-            top_p: 0.9,
-            do_sample: true,
-            repetition_penalty: 1.1, // Prevent repetitive text
-            stop: ["\n\n\n\n"], // Stop at excessive newlines
-          },
-          options: {
-            wait_for_model: true,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Hugging Face API Error:', response.status, errorText);
-
-      // Handle specific error cases
-      if (response.status === 401) {
-        return Response.json(
-          { error: 'Invalid API credentials. Please check your Hugging Face API key.' },
-          { status: 401 }
-        );
-      }
-
-      if (response.status === 429) {
-        return Response.json(
-          { error: 'Rate limit exceeded. Please try again later.' },
-          { status: 429 }
-        );
-      }
-
-      if (response.status === 503) {
-        return Response.json(
-          { error: 'Model is currently loading. Please try again in a few moments.' },
-          { status: 503 }
-        );
-      }
-
-      throw new Error(`API request failed: ${response.status} ${errorText}`);
-    }
-
-    const result = await response.json();
-    // console.log('Hugging Face response:', result);
-
-    // Handle different response formats
-    let rawSummary = '';
-    if (Array.isArray(result) && result.length > 0) {
-      rawSummary = result[0].generated_text || result[0].text || '';
-    } else if (result.generated_text) {
-      rawSummary = result.generated_text;
-    } else if (typeof result === 'string') {
-      rawSummary = result;
-    } else {
-      console.error('Unexpected response format:', result);
-      rawSummary = 'Unable to generate summary due to unexpected response format.';
-    }
-
-    // Clean and format the summary
-    const cleanedSummary = cleanAndFormatSummary(rawSummary, combinedInput);
-
-    // console.log('Raw Summary:', rawSummary.substring(0, 300) + '...');
-    // console.log('Cleaned Summary:', cleanedSummary.substring(0, 300) + '...');
-
-    return Response.json({
-      success: true,
-      result: cleanedSummary, // Changed from 'summary' to 'result' for consistency
-      summary: cleanedSummary, // Keep both for backward compatibility
-      originalMessage: message,
-      responseCount: responses.length,
-      processedAt: new Date().toISOString(),
-      model_used: 'mistralai/Mixtral-8x7B-Instruct-v0.1'
-    });
-
-  } catch (error: unknown) {
-    console.error('Mistral API Error:', error);
-
-    // Handle network errors
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      return Response.json(
-        { error: 'Network error. Please check your internet connection.' },
-        { status: 503 }
-      );
-    }
-
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return Response.json(
-      { error: 'Failed to generate summary', details: errorMessage },
+    const summaryService = new SummaryService();
+    const result = await summaryService.generateSummary(body as SummaryRequest);
+    
+    const status = result.success ? 200 : 500;
+    return NextResponse.json(result, { status });
+    
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        success: false,
+        result: "I'm having technical difficulties. Please try again in a moment.",
+        processedAt: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ 
+    message: 'Summary API is running',
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
 }
