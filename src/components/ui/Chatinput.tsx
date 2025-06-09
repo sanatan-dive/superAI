@@ -1,5 +1,5 @@
 'use client';
-import { Paperclip, ArrowUp } from 'lucide-react';
+import {  ArrowUp } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useState } from 'react';
@@ -62,13 +62,7 @@ export default function ChatInput({
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
             {/* Attachment Button */}
-            <button
-              type="button"
-              className="text-zinc-400 hover:text-white hover:bg-zinc-800 p-2 rounded-lg transition-colors duration-200"
-              title="Attach file"
-            >
-              <Paperclip className="h-5 w-5" />
-            </button>
+           
 
             {/* Submit Button */}
             <button

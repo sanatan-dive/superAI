@@ -4,8 +4,9 @@ import Hero from "@/components/Hero";
 import Gemini from "@/components/Gemini";
 import DeepSeek from "@/components/Deepseek";
 import { useUser, useClerk } from "@clerk/nextjs";
-import Devstral from "@/components/Devstral";
-import Llama from "@/components/Llama";
+import GPT from "@/components/GPT";
+import Claude from "@/components/Claude";
+
 
 export default function Home() {
   const [rightCollapsed, setRightCollapsed] = useState(true); // Start with right panel closed
@@ -145,29 +146,7 @@ export default function Home() {
     }
   };
 
-  // const saveConversation = async (
-  //   userId: string,
-  //   content: string,
-  //   response: string,
-  //   finalAnswer?: string
-  // ) => {
-  //   try {
-  //     const result = await fetch('/api/chathistory', {
-  //       method: 'POST',
-  //       body: JSON.stringify({ userId, content, response, finalAnswer }),
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //     });
-  //     if (!result.ok) {
-  //       console.error("Failed to save conversation");
-  //     } else {
-  //       console.log("Conversation saved successfully");
-  //     }
-  //   } catch (err) {
-  //     console.error("Error saving conversation:", err);
-  //   }
-  // };
+ 
 
   return (
     <div className="bg-stone-950 max-h-screen overflow-hidden">
@@ -183,12 +162,12 @@ export default function Home() {
           }`}
         >
           <Hero 
-            openLeft={toggleRightPanel} 
+            openLeft={toggleRightPanel}
             onSubmit={handleMessageSubmit}
             onReset={handleReset}
             ultimateResponse={ultimateResponse} // Pass the ultimate response
             isProcessing={isSummarizing} // Pass processing state
-          />
+            userId={user?.id || ""} conversationId={""}          />
         </div>
 
         {/* Right Panel - AI Responses */}
@@ -246,7 +225,7 @@ export default function Home() {
                   ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
                 `}
               >
-                <Llama message={message} onResponseChange={handleClaudeResponse} />
+                <Claude message={message} onResponseChange={handleClaudeResponse} />
               </div> 
               
               <div 
@@ -255,7 +234,7 @@ export default function Home() {
                   ${rightCollapsed ? 'opacity-0 translate-x-8' : 'opacity-100 translate-x-0'}
                 `}
               >
-                <Devstral message={message} onResponseChange={handleGPTResponse} />
+                <GPT message={message} onResponseChange={handleGPTResponse} />
               </div>
              
             </div>

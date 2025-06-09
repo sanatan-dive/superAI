@@ -15,6 +15,7 @@ const MarkdownRenderer = ({ content }: { content: string }) => (
       ul: ({ children }) => <ul className="list-disc ml-6 space-y-1 mb-4">{children}</ul>,
       ol: ({ children }) => <ol className="list-decimal ml-6 space-y-1 mb-4">{children}</ol>,
       li: ({ children }) => <li className="text-neutral-300 text-sm leading-relaxed">{children}</li>,
+      
       code: ({ inline, children }) => 
         inline ? (
           <code className="bg-neutral-700 px-1 py-0.5 rounded text-xs text-neutral-200 font-mono">
@@ -49,6 +50,74 @@ const MarkdownRenderer = ({ content }: { content: string }) => (
   </ReactMarkdown>
 );
 
+const ApiKeyInput = ({ onApiKeySave }: { onApiKeySave: (apiKey: string) => void }) => {
+  const [apiKey, setApiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+
+  const handleSave = () => {
+    if (apiKey.trim()) {
+      // Store in localStorage
+      localStorage.setItem('claude_api_key', apiKey.trim());
+      onApiKeySave(apiKey.trim());
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    }
+  };
+
+  return (
+    <Card className="max-w-md">
+      <CardSkeletonContainer>
+        <div className="p-8 overflow-hidden h-full relative flex items-center justify-center">
+          <div className="flex flex-row flex-shrink-0 justify-center items-center gap-2">
+            <Container>
+              <ClaudeLogo className="h-8 w-8 rounded-full dark:text-white" />
+            </Container>
+          </div>
+        </div>
+      </CardSkeletonContainer>
+      
+      <CardTitle>Enter Your Claude API Key</CardTitle>
+      
+      <div className="space-y-3 mt-3">
+        <div className="relative">
+          <input
+            type={showKey ? "text" : "password"}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="sk-ant-api03-..."
+            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-md text-neutral-200 text-sm focus:outline-none focus:border-blue-400 pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowKey(!showKey)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-200 text-xs"
+          >
+            {showKey ? "Hide" : "Show"}
+          </button>
+        </div>
+        
+        <button
+          onClick={handleSave}
+          disabled={!apiKey.trim()}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-700 disabled:text-neutral-500 text-white text-sm py-2 px-4 rounded-md transition-colors"
+        >
+          Save API Key
+        </button>
+        
+        <div className="text-xs absolute top-0 text-neutral-400 space-y-1">
+          <p>🔒 Your API key is stored locally in your browser only.</p>
+  
+        </div>
+      </div>
+    </Card>
+  );
+};
+
 interface ClaudeProps {
   message: string;
   onResponseChange?: (response: string) => void;
@@ -59,47 +128,62 @@ export default function Claude({ message, onResponseChange }: ClaudeProps) {
   const [response, setResponse] = useState<string | null>(null);
   const [showMore, setShowMore] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+
+  // Check for existing API key on component mount
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('claude_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+  }, []);
+
+  // Handle API key save
+  const handleApiKeySave = (newApiKey: string) => {
+    setApiKey(newApiKey);
+  };
+
+  // Handle clearing API key
+  const handleClearApiKey = () => {
+    localStorage.removeItem('claude_api_key');
+    setApiKey(null);
+    setResponse(null);
+  };
 
   useEffect(() => {
-    if (message.trim()) {
+    if (message.trim() && apiKey) {
       setLoading(true);
       setResponse("");
       setShowMore(false);
       
       const fetchData = async () => {
         try {
-          console.log('Making API call with message:', message);
-          
-          const result = await fetch('/api/llama', {
+          const result = await fetch('/api/claude', {
             method: 'POST',
             body: JSON.stringify({ 
-              prompt: message
+              prompt: message,
+              apiKey: apiKey // Send API key from frontend
             }),
             headers: {
               'Content-Type': 'application/json',
             },
           });
           
-          console.log('API response status:', result.status);
-          
           if (!result.ok) {
             const errorData = await result.json();
-            console.error('API error:', errorData);
             throw new Error(errorData.error || 'Failed to get response');
           }
           
           const data = await result.json();
-          console.log('API response data:', data);
-          
-          const responseText = data.choices?.[0]?.message?.content || data.result || 'No response received';
-          console.log('Extracted response text:', responseText);
-          
+          const responseText = data.content?.[0]?.text || data.result || 'No response received';
           setResponse(responseText);
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
           onResponseChange && onResponseChange(responseText);
         } catch (error) {
           console.error('Error fetching response:', error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           setResponse(`Error: ${errorMessage}`);
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
           onResponseChange && onResponseChange("");
         } finally {
           setLoading(false);
@@ -107,7 +191,7 @@ export default function Claude({ message, onResponseChange }: ClaudeProps) {
       };
       fetchData();
     }
-  }, [message]);
+  }, [message, apiKey, onResponseChange]);
 
   const handleCopy = async () => {
     if (response) {
@@ -157,6 +241,11 @@ export default function Claude({ message, onResponseChange }: ClaudeProps) {
     });
   };
 
+  // Show API key input if no API key is saved
+  if (!apiKey) {
+    return <ApiKeyInput onApiKeySave={handleApiKeySave} />;
+  }
+
   return (
     <Card className={showMore ? "max-w-2xl" : "max-w-md"}>
       {!showMore ? (
@@ -164,7 +253,17 @@ export default function Claude({ message, onResponseChange }: ClaudeProps) {
           <CardSkeletonContainer>
             <Skeleton />
           </CardSkeletonContainer>
-          <CardTitle>Llama</CardTitle>
+          <CardTitle>
+            <div className="flex items-center justify-between">
+              <span>Claude</span>
+              <button
+                onClick={handleClearApiKey}
+                className="text-xs text-red-400 hover:text-red-300 underline"
+              >
+                Change API Key
+              </button>
+            </div>
+          </CardTitle>
           <CardDescription>
             {loading ? (
               "Generating response..."
@@ -186,7 +285,7 @@ export default function Claude({ message, onResponseChange }: ClaudeProps) {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle>AI Response</CardTitle>
+            <CardTitle>Claude Response</CardTitle>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopy}
@@ -199,6 +298,12 @@ export default function Claude({ message, onResponseChange }: ClaudeProps) {
                 className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors px-2 py-1 rounded border border-neutral-600 hover:border-neutral-500"
               >
                 Collapse
+              </button>
+              <button
+                onClick={handleClearApiKey}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors px-2 py-1 rounded border border-red-600 hover:border-red-500"
+              >
+                Change Key
               </button>
             </div>
           </div>
@@ -269,6 +374,8 @@ const Skeleton = () => {
 
   useEffect(() => {
     animate(sequence, {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       repeat: Infinity,
       repeatDelay: 1,
     });
@@ -278,7 +385,7 @@ const Skeleton = () => {
     <div className="p-8 overflow-hidden h-full relative flex items-center justify-center">
       <div className="flex flex-row flex-shrink-0 justify-center items-center gap-2">
         <Container className="circle-3">
-          <LlamaLogo className="h-8 w-8 rounded-full dark:text-white" />
+          <ClaudeLogo className="h-8 w-8 rounded-full dark:text-white" />
         </Container>
       </div>
       <div className="w-10 h-32 top-1/2 -translate-y-1/2 absolute -left-10"></div>
@@ -308,6 +415,7 @@ export const Card = ({
 export const CardSkeletonContainer = ({
   className,
   children,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   showGradient = true,
 }: {
   className?: string;
@@ -385,15 +493,24 @@ export const CardDescription = ({
   );
 };
 
-export const LlamaLogo = ({ className }: { className?: string }) => {
+export const ClaudeLogo = ({ className }: { className?: string }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
+      shapeRendering="geometricPrecision"
+      textRendering="geometricPrecision"
+      imageRendering="optimizeQuality"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      viewBox="0 0 512 512"
       className={className}
     >
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      <rect fill="#CC9B7A" width="512" height="512" rx="104.187" ry="105.042" />
+      <path
+        fill="#1F1F1E"
+        fillRule="nonzero"
+        d="M318.663 149.787h-43.368l78.952 212.423 43.368.004-78.952-212.427zm-125.326 0l-78.952 212.427h44.255l15.932-44.608 82.846-.004 16.107 44.612h44.255l-79.126-212.427h-45.317zm-4.251 128.341l26.91-74.701 27.083 74.701h-53.993z"
+      />
     </svg>
   );
 };

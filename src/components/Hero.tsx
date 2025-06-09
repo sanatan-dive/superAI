@@ -123,7 +123,6 @@ function Hero({
   openLeft, 
   onSubmit, 
   ultimateResponse, 
-  isProcessing, 
   userId, 
   conversationId,
   aiResponses 
@@ -416,7 +415,6 @@ function Hero({
           <div className="max-w-4xl mx-auto">
             <ChatInput 
               onSubmit={handleFormSubmit}
-              disabled={currentLoadingMessageId !== null}
             />
           </div>
         </div>
